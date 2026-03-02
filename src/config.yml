@@ -1,5 +1,5 @@
-main_token: "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"
-secondary_token: "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"
+main_token: "YOUR_GITHUB_TOKEN_HERE"
+secondary_token: "YOUR_SECONDARY_GITHUB_TOKEN_HERE"
 
 # whether to remove traces left by the last reproduction. Set to False if you want to reuse the information
 del_traces: false

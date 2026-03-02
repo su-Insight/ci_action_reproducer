@@ -1,0 +1,3 @@
+repository_name,run_id,status,exception,new_repository,new_run_id,conclusion
+huaweicloud/spring-cloud-huawei,17728568623,0,1,1,1,1
+s,1,1

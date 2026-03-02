@@ -1,0 +1,40 @@
+main_token: "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"
+secondary_token: "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"
+
+# whether to remove traces left by the last reproduction. Set to False if you want to reuse the information
+del_traces: false
+
+# A simulated commit means operating with two repositories.
+# If the original build pull request came from two different repositories, we also use two different repositories for the operation.
+# This fully simulates the previous operation, and it is recommended to set it to True
+simulated_commit: true
+
+
+# The SSH key name used for Git operations in this workflow.
+# Typically corresponds to a Host alias defined in ~/.ssh/config or an SSH key stored in GitHub Secrets.
+# Example: "my_ssh_key" maps to a private key used to authenticate with GitHub.
+# If simulated_commit is false, this is required.
+local_ssh_name: "ssh_name1"
+
+# A list of multiple SSH key names, used when different repositories or operations
+# require separate SSH keys. Each item should correspond to a Host alias defined
+# in ~/.ssh/config or an SSH key stored in GitHub Secrets.
+# Example:
+#   - "ssh_name1" for repository A (main)
+#   - "ssh_name2" for repository B
+# If simulated_commit is true, this is required.
+local_ssh_names:
+  - "github.com"
+  - "github-B"
+
+
+# The following two options do not affect recent logs.
+# However, if you are refactoring the current project and need to reproduce very old builds, and do not care about Action/OS differences, you can set them to true.
+
+# If your current OS is no longer supported by GitHub, the oldest supported version will be used as a replacement (try to keep the difference minimal).
+# For example, Ubuntu 18.04 has been deprecated; if you set this to true, we will use 20.04 as a replacement.
+enable_min_replaceable_os_version: false
+
+# If your current action is no longer supported by GitHub, the oldest supported version will be used as a replacement (try to keep the difference minimal).
+# For example, upload-artifact@1 has been deprecated; if you set this to true, we will use upload-artifact@3 as a replacement.
+enable_min_replaceable_action_version: false

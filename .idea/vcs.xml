@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clone" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clone/QDinsight/spring-cloud-huawei" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clone/microsoft@markitdown" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clone/su-Insight/spring-cloud-huawei" vcs="Git" />
+  </component>
+</project>

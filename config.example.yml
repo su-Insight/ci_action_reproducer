@@ -1,0 +1,20 @@
+main_token: "YOUR_GITHUB_TOKEN_HERE"
+secondary_token: "YOUR_SECONDARY_GITHUB_TOKEN_HERE"
+
+# Whether to remove traces left by the last reproduction.
+del_traces: false
+
+# When true, use a second account/repository pair to mimic cross-repo pull requests.
+simulated_commit: true
+
+# Backward-compatible single SSH host alias.
+local_ssh_name: "github.com"
+
+# Preferred multi-SSH configuration.
+local_ssh_names:
+  - "github.com"
+  - "github-B"
+
+# Safe default for the current draft stage:
+# only download logs and write a rewritten workflow preview.
+preview_only: true

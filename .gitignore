@@ -1,0 +1,10 @@
+.idea/
+.venv/
+__pycache__/
+*.pyc
+.tmp_tests/
+
+artifacts/
+clone/
+
+config.yml

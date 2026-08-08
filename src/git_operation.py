@@ -1,145 +1,144 @@
+from __future__ import annotations
+
 import subprocess
-from git import Repo, exc, GitCommandError
+from pathlib import Path
+
+from git import GitCommandError, Repo
 
 
-def run_command(cmd, cwd=None):
-    """
-    执行命令并实时输出到控制台，同时返回完整输出
-    :param cmd: 命令列表，例如 ['git', 'clone', 'url']
-    :param cwd: 工作目录，None表示当前目录
-    :return: 返回命令完整输出字符串
-    """
-    try:
-        # 使用Popen实现实时输出
-        result_lines = []
-        with subprocess.Popen(
-            cmd,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,  # 错误流也输出到stdout
-            text=True
-        ) as proc:
-            for line in proc.stdout:
-                print(line, end='')  # 实时打印
-                result_lines.append(line)
-            proc.wait()  # 等待命令执行完成
-            if proc.returncode != 0:
-                raise subprocess.CalledProcessError(proc.returncode, cmd, output=''.join(result_lines))
-        return ''.join(result_lines)
-    except subprocess.CalledProcessError as e:
-        print("命令执行失败:", ' '.join(cmd))
-        print("错误信息:", e.output)
-        return None
+class GitRepositoryManager:
+    def run_command(self, cmd: list[str], cwd: Path | None = None) -> str | None:
+        try:
+            output_lines: list[str] = []
+            with subprocess.Popen(
+                cmd,
+                cwd=str(cwd) if cwd else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            ) as process:
+                assert process.stdout is not None
+                for line in process.stdout:
+                    print(line, end="")
+                    output_lines.append(line)
+                process.wait()
+                if process.returncode != 0:
+                    raise subprocess.CalledProcessError(
+                        process.returncode,
+                        cmd,
+                        output="".join(output_lines),
+                    )
+            return "".join(output_lines)
+        except subprocess.CalledProcessError as exc:
+            print("Command failed:", " ".join(cmd))
+            print("Output:", exc.output)
+            return None
 
-def remote_fetch(repo_path, remote_repo, remote_name='upstream'):
-    remote = remote_repository_add(repo_path, remote_repo, remote_name)
+    def clone_if_missing(self, repository_url: str, destination: Path) -> None:
+        if destination.exists():
+            print(f"Clone skipped, destination exists: {destination}")
+            return
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Cloning {repository_url} -> {destination}")
+        self.run_command(["git", "clone", repository_url, str(destination)])
 
-    if not remote:
-        print("❌ 远程仓库添加失败")
-        return None
+    def ensure_remote(
+        self,
+        repo_path: Path,
+        remote_name: str,
+        repository: str,
+        *,
+        use_ssh: bool = False,
+        ssh_name: str = "",
+    ) -> None:
+        repo = Repo(repo_path)
+        remote_url = (
+            f"git@{ssh_name}:{repository}.git"
+            if use_ssh
+            else f"https://github.com/{repository}.git"
+        )
 
-    repo = Repo(repo_path)
-    if repo.bare:
-        print("该路径不是有效的 Git 仓库")
+        if remote_name in [remote.name for remote in repo.remotes]:
+            remote = repo.remote(remote_name)
+            if remote.url != remote_url:
+                remote.set_url(remote_url)
+            return
 
-    try:
-        # 获取远程对象
-        # remote = repo.remote(remote_name)
+        repo.create_remote(remote_name, remote_url)
 
-        # 从远程仓库获取最新的所有分支和提交信息
-        print(f"Fetching from {remote_name} ({remote_repo})...")
-        fetch_info = remote.fetch(prune=True)  # prune=True 可以清理已经删除的远程分支
-        for remote_ref in remote.refs:
-            branch_name = remote_ref.name.replace(f"{remote_name}/", "")
-            if branch_name not in repo.heads:  # 本地不存在该分支
-                repo.create_head(branch_name, remote_ref).set_tracking_branch(remote_ref)
-                print(f"本地分支 {branch_name} 已创建并跟踪 {remote_ref}")
+    def fetch(self, repo_path: Path, repository: str, remote_name: str) -> bool:
+        self.ensure_remote(repo_path, remote_name, repository)
+        repo = Repo(repo_path)
 
-        print("远程分支与提交信息已同步完成 ✅")
-        return repo
-
-    except GitCommandError as e:
-        print(f"执行 Git 命令失败: {e}")
-    except Exception as e:
-        print(f"发生未知错误: {e}")
-
-def remote_repository_add(repo_path, remote_repo, remote_name='upstream', use_ssh=False, ssh_name=""):
-    """
-    Add or update a remote repository for the given local repo.
-
-    :param repo_path: 本地 Git 仓库路径
-    :param remote_repo: 远程仓库 (例如 "user/repo")
-    :param remote_name: 远程仓库名 (默认 'origin')
-    :return: Remote 对象
-    """
-    if use_ssh:
-        remote_url = f'git@{ssh_name}:{remote_repo}.git'
-    else:
-        remote_url = f'https://github.com/{remote_repo}.git'
-
-    repo = Repo(repo_path)
-    if repo.bare:
-        print(f"❌ {repo_path}不是有效的 Git 仓库")
-        return None
-
-    if remote_name in [r.name for r in repo.remotes]:
-        remote = repo.remote(remote_name)
-        if remote.url != remote_url:
-            print(f"⚠️ Remote '{remote_name}' 已存在，但 URL 不匹配，更新为 {remote_url}")
-            remote.set_url(remote_url)
-        else:
-            print(f"✅ Remote '{remote_name}' 已存在: {remote.url}")
-    else:
-        remote = repo.create_remote(remote_name, remote_url)
-        print(f"➕ 已添加远程仓库：{remote_name} -> {remote_url}")
-
-    return remote
-
-
-def reset_branch(repo_path, remote_repo, branch, commit_sha):
-    repo = remote_fetch(repo_path, remote_repo, remote_repo.split('/')[0])
-    if not repo:
-        return None
-
-    try:
-        print(f"🔄 Checking out branch '{branch}'...")
-        repo.git.checkout(branch)
-        print(f"⚡ Resetting branch '{branch}' to commit '{commit_sha}' (hard reset)...")
-        repo.git.reset('--hard', commit_sha)
-        print(f"✅ Branch '{branch}' is now at commit '{commit_sha}'")
-    except GitCommandError as e:
-        print(f"执行 Git 命令失败: {e}")
-        print(f"❌ Reset '{commit_sha}', Branch: {branch}")
-        return None
-    except Exception as e:
-        print(f"发生未知错误: {e}")
-        print(f"❌ Reset '{commit_sha}', Branch: {branch}")
-        return None
-    print(f"✅ Reset '{commit_sha}', Branch: {branch}")
-    return repo
-    # if branch == default_branch:
-    #     pass
-    #     # TODO: reset --hard
-    # else:
-    #
-
-def push(repo_path, branch, remote_name):
-    # remote = remote_repository_add(repo_path, remote_repo, "origin")
-
-    repo = Repo(repo_path)
-    origin = repo.remote(name=remote_name)
-
-    # 推送到远程分支
-    try:
-        push_info = origin.push(refspec=branch, force=True)[0]
-
-        if push_info.flags & push_info.ERROR:
-            print(f"推送失败: {push_info.summary}")
+        try:
+            remote = repo.remote(remote_name)
+            print(f"Fetching {remote_name} in {repo_path}")
+            remote.fetch(prune=True)
+            for remote_ref in remote.refs:
+                branch_name = remote_ref.name.replace(f"{remote_name}/", "")
+                if branch_name not in repo.heads:
+                    repo.create_head(branch_name, remote_ref).set_tracking_branch(remote_ref)
+            return True
+        except GitCommandError as exc:
+            print(f"Fetch failed: {exc}")
             return False
 
-        print(f"成功推送触发分支 {branch}")
-        return True
+    def reset_branch_to_commit(
+        self,
+        repo_path: Path,
+        source_repository: str,
+        branch: str,
+        commit_sha: str,
+    ) -> bool:
+        remote_name = source_repository.split("/")[0]
+        if not self.fetch(repo_path, source_repository, remote_name):
+            return False
 
-    except GitCommandError as e:
-        print(f"推送失败: {e}")
-        return False
+        repo = Repo(repo_path)
+        try:
+            remote_branch = f"{remote_name}/{branch}"
+            print(
+                f"Resetting {repo_path} from {source_repository} "
+                f"remote_branch={remote_branch} to commit={commit_sha}"
+            )
+            repo.git.checkout("-B", branch, remote_branch)
+            repo.git.reset("--hard", commit_sha)
+            return True
+        except GitCommandError as exc:
+            print(f"Reset failed for {branch}@{commit_sha}: {exc}")
+            return False
+
+    def push(
+        self,
+        repo_path: Path,
+        branch: str,
+        remote_name: str,
+        *,
+        create_empty_commit: bool = False,
+        empty_commit_message: str = "chore: trigger ci replay",
+    ) -> bool:
+        repo = Repo(repo_path)
+        remote = repo.remote(name=remote_name)
+        try:
+            if create_empty_commit:
+                print(f"Creating empty commit in {repo_path}: {empty_commit_message}")
+                repo.git.commit("--allow-empty", "-m", empty_commit_message)
+            print(f"Pushing {repo_path} branch={branch} remote={remote_name}")
+            push_info = remote.push(refspec=branch, force=True)[0]
+            if push_info.flags & push_info.ERROR:
+                print(f"Push failed: {push_info.summary}")
+                return False
+            return True
+        except GitCommandError as exc:
+            print(f"Push failed: {exc}")
+            return False
+
+    def get_head_commit_sha(self, repo_path: Path, branch: str) -> str | None:
+        repo = Repo(repo_path)
+        try:
+            sha = repo.git.rev_parse(branch).strip()
+            print(f"Resolved head sha for {repo_path} branch={branch}: {sha}")
+            return sha
+        except GitCommandError as exc:
+            print(f"Failed to resolve head sha for {branch}: {exc}")
+            return None
